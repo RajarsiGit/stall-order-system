@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Archivo Black", "Archivo", sans-serif;
+  --font-sans: "Archivo", system-ui, sans-serif;
+  --font-mono: "DM Mono", monospace;
+
+  --color-ink: #1c1917;
+  --color-paper: #faf7f2;
+  --color-paper-dim: #f0ebe1;
+  --color-paprika: #d9480f;
+  --color-paprika-dark: #b8380a;
+  --color-herb: #2d6a4f;
+  --color-herb-light: #e5f0ea;
+  --color-turmeric: #e8b923;
+  --color-turmeric-light: #fbf1d6;
+  --color-stone: #78716c;
+  --color-stone-light: #e7e2d9;
+  --color-line: #d9d2c4;
+}
+
+html {
+  background: var(--color-paper);
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+}
+
+.ticket-edge {
+  position: relative;
+}
+.ticket-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 10px;
+  background-image: radial-gradient(circle at 10px 0, transparent 9px, var(--color-paper) 9.5px);
+  background-size: 20px 10px;
+  background-repeat: repeat-x;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

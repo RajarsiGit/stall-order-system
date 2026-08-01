@@ -1,0 +1,9 @@
+{
+  "name": "stall-order-system",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "server"
+  ]
+}
