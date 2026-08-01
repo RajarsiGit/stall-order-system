@@ -236,8 +236,16 @@ export default function OwnerDashboard() {
     if (!order) return;
     const targetStatus = over.id;
     if (targetStatus === order.status) return;
-    if (NEXT_STATUS[order.status]?.next !== targetStatus) {
-      setError(`Can't move ${order.order_number} straight to "${STATUS_LABEL[targetStatus]}" — drag it one column at a time.`);
+
+    const sourceIndex = COLUMNS.findIndex((c) => c.key === order.status);
+    const targetIndex = COLUMNS.findIndex((c) => c.key === targetStatus);
+
+    if (targetIndex < sourceIndex) {
+      setError(`${order.order_number} is already "${STATUS_LABEL[order.status]}" — it can't be dragged backward.`);
+      return;
+    }
+    if (targetIndex > sourceIndex + 1) {
+      setError(`${order.order_number} needs to go through "${COLUMNS[sourceIndex + 1].title}" first.`);
       return;
     }
     handleAdvance(order, targetStatus);
