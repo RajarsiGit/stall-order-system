@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import { api } from '../lib/api';
 import { useOwnerAuth } from '../lib/OwnerAuthContext';
 import { usePageTitle } from '../lib/usePageTitle';
@@ -30,8 +40,26 @@ function timeAgo(iso) {
 
 function OrderCard({ order, onAdvance, onCancel, onTogglePayment, busy }) {
   const action = NEXT_STATUS[order.status];
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: String(order.id),
+    disabled: busy,
+  });
+
+  const style = {
+    touchAction: 'none',
+    ...(transform && { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }),
+  };
+
   return (
-    <div className="ticket-edge border-2 border-ink bg-white px-5 pb-7 pt-4">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`ticket-edge border-2 border-ink bg-white px-5 pb-7 pt-4 cursor-grab active:cursor-grabbing ${
+        isDragging ? 'relative z-20 opacity-90 shadow-lg' : ''
+      }`}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-2xl tabular-nums">{order.order_number}</p>
@@ -100,6 +128,42 @@ const COLUMNS = [
   { key: 'ready', title: 'Ready for pickup' },
 ];
 
+function Column({ col, orders, onAdvance, onCancel, onTogglePayment, busyId }) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.key });
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-mono text-sm font-semibold uppercase tracking-wider">{col.title}</h2>
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-ink px-1.5 text-xs font-bold text-paper">
+          {orders.length}
+        </span>
+      </div>
+      <div
+        ref={setNodeRef}
+        className={`space-y-4 rounded-sm transition-colors ${
+          isOver ? 'outline-2 outline-dashed outline-turmeric bg-turmeric-light/40' : ''
+        }`}
+      >
+        {orders.length === 0 && (
+          <p className="border-2 border-dashed border-line px-4 py-8 text-center text-sm text-stone">
+            Nothing here right now
+          </p>
+        )}
+        {orders.map((order) => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            onAdvance={onAdvance}
+            onCancel={onCancel}
+            onTogglePayment={onTogglePayment}
+            busy={busyId === order.id}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerDashboard() {
   const { stall, logout, setStall } = useOwnerAuth();
 
@@ -109,6 +173,10 @@ export default function OwnerDashboard() {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
   const pollRef = useRef(null);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   const load = useCallback(() => {
     api
@@ -161,6 +229,20 @@ export default function OwnerDashboard() {
     }
   }
 
+  function handleDragEnd(event) {
+    const { active, over } = event;
+    if (!over) return;
+    const order = orders.find((o) => String(o.id) === active.id);
+    if (!order) return;
+    const targetStatus = over.id;
+    if (targetStatus === order.status) return;
+    if (NEXT_STATUS[order.status]?.next !== targetStatus) {
+      setError(`Can't move ${order.order_number} straight to "${STATUS_LABEL[targetStatus]}" — drag it one column at a time.`);
+      return;
+    }
+    handleAdvance(order, targetStatus);
+  }
+
   async function toggleStallOpen() {
     try {
       const updated = await api.setStallOpen(!stall.is_open);
@@ -209,38 +291,21 @@ export default function OwnerDashboard() {
           <div className="mb-6 border-2 border-paprika bg-paprika/10 px-4 py-3 text-paprika-dark">{error}</div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {COLUMNS.map((col) => {
-            const colOrders = orders.filter((o) => o.status === col.key);
-            return (
-              <div key={col.key}>
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-mono text-sm font-semibold uppercase tracking-wider">{col.title}</h2>
-                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-ink px-1.5 text-xs font-bold text-paper">
-                    {colOrders.length}
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  {colOrders.length === 0 && (
-                    <p className="border-2 border-dashed border-line px-4 py-8 text-center text-sm text-stone">
-                      Nothing here right now
-                    </p>
-                  )}
-                  {colOrders.map((order) => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      onAdvance={handleAdvance}
-                      onCancel={handleCancel}
-                      onTogglePayment={handleTogglePayment}
-                      busy={busyId === order.id}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {COLUMNS.map((col) => (
+              <Column
+                key={col.key}
+                col={col}
+                orders={orders.filter((o) => o.status === col.key)}
+                onAdvance={handleAdvance}
+                onCancel={handleCancel}
+                onTogglePayment={handleTogglePayment}
+                busyId={busyId}
+              />
+            ))}
+          </div>
+        </DndContext>
       </main>
     </div>
   );
