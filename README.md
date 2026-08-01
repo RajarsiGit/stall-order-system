@@ -72,15 +72,19 @@ vercel deploy --prod           # production
 API from `api/index.js` (the same Express app used locally), with `/api/*`
 requests rewritten to that one function.
 
-## Demo logins (stall owner side)
+## Demo logins
 
 Seeded by `server/db.js` — change these before any real deployment.
+
+**Stall owners** (each scoped to their own stall only):
 
 | Stall           | Username         | Password    |
 |-----------------|------------------|-------------|
 | Curry House     | `curryhouse`     | `password123` |
 | Dosa Corner     | `dosacorner`     | `password123` |
 | Burger Junction | `burgerjunction` | `password123` |
+
+**Admin** (can create new stalls): `admin` / `admin123`
 
 ## How it works
 
@@ -98,10 +102,17 @@ Seeded by `server/db.js` — change these before any real deployment.
 4. Mark payment received per order (tracked, not processed — no real payment gateway)
 5. Manage menu items (add/remove, toggle availability) and toggle the stall open/closed
 
+**Admin flow**
+1. Log in at `/admin/login` (separate login, not tied to any stall)
+2. See every stall in the food court and add a new one — name, description, and an initial
+   owner username/password for it, created in one step
+3. Admins can't see or manage any stall's orders/menu — that stays with the stall owner login
+
 ## Data model
 
 - `stalls` — name, description, open/closed
 - `stall_owners` — login credentials, scoped to one stall
+- `admins` — login credentials for the separate admin role (stall creation only)
 - `menu_items` — per stall, with availability toggle
 - `orders` — order number, customer info, status, payment status, total
 - `order_items` — line items per order (price captured at order time, so later menu price changes don't retroactively change past orders)
@@ -120,7 +131,7 @@ so the API rejects invalid jumps (e.g. `placed → handed_over`).
 ## Next steps you might want
 
 - Owner ability to reset/change their password
-- A super-admin view across all stalls (currently each owner only sees their own)
+- Admin visibility into orders/sales across all stalls (today admin can only create stalls, not view their activity)
 - Order history / basic sales reporting per stall
 - Sound or browser push notification when a new order lands
 - QR code per stall linking straight to its menu

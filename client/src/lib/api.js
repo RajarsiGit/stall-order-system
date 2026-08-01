@@ -4,9 +4,13 @@ function getToken() {
   return localStorage.getItem('owner_token');
 }
 
+function getAdminToken() {
+  return localStorage.getItem('admin_token');
+}
+
 async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-  const token = getToken();
+  const token = options.token !== undefined ? options.token : getToken();
   if (token && !options.skipAuth) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
@@ -53,6 +57,14 @@ export const api = {
   updateMenuItem: (id, payload) => request(`/owner/menu/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteMenuItem: (id) => request(`/owner/menu/${id}`, { method: 'DELETE' }),
   setStallOpen: (is_open) => request('/owner/stall', { method: 'PATCH', body: JSON.stringify({ is_open }) }),
+
+  // Admin
+  adminLogin: (username, password) =>
+    request('/admin/login', { method: 'POST', body: JSON.stringify({ username, password }), skipAuth: true }),
+  adminMe: () => request('/admin/me', { token: getAdminToken() }),
+  getAdminStalls: () => request('/admin/stalls', { token: getAdminToken() }),
+  createStall: (payload) =>
+    request('/admin/stalls', { method: 'POST', body: JSON.stringify(payload), token: getAdminToken() }),
 };
 
 export function setToken(token) {
@@ -61,4 +73,10 @@ export function setToken(token) {
 export function clearToken() {
   localStorage.removeItem('owner_token');
 }
-export { getToken };
+export function setAdminToken(token) {
+  localStorage.setItem('admin_token', token);
+}
+export function clearAdminToken() {
+  localStorage.removeItem('admin_token');
+}
+export { getToken, getAdminToken };

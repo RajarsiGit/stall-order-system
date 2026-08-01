@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const { customAlphabet } = require('nanoid');
 
 const { pool, ready } = require('./db');
-const { signToken, requireAuth } = require('./auth');
+const { signToken, signAdminToken, requireAuth, requireAdmin } = require('./auth');
 
 const app = express();
 app.use(cors());
@@ -294,6 +294,78 @@ app.patch('/api/owner/stall', requireAuth, async (req, res) => {
     [req.owner.stallId]
   );
   res.json(rows[0]);
+});
+
+// ================= AUTH (admin) =================
+
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+
+  const { rows } = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
+  const admin = rows[0];
+  if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  const token = signAdminToken(admin);
+  res.json({ token, admin: { username: admin.username } });
+});
+
+app.get('/api/admin/me', requireAdmin, async (req, res) => {
+  res.json({ admin: { username: req.admin.username } });
+});
+
+// ================= ADMIN (protected) =================
+
+app.get('/api/admin/stalls', requireAdmin, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.name, s.description, s.is_open, s.created_at, o.username AS owner_username
+     FROM stalls s
+     LEFT JOIN stall_owners o ON o.stall_id = s.id
+     ORDER BY s.name`
+  );
+  res.json(rows);
+});
+
+app.post('/api/admin/stalls', requireAdmin, async (req, res) => {
+  const { name, description, owner_username, owner_password } = req.body;
+
+  if (!name?.trim() || !owner_username?.trim() || !owner_password) {
+    return res.status(400).json({ error: 'name, owner_username, and owner_password are required' });
+  }
+  if (owner_password.length < 6) {
+    return res.status(400).json({ error: 'owner_password must be at least 6 characters' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: stallRows } = await client.query(
+      'INSERT INTO stalls (name, description) VALUES ($1, $2) RETURNING id, name, description, is_open',
+      [name.trim(), description?.trim() || null]
+    );
+    const stall = stallRows[0];
+
+    const hash = bcrypt.hashSync(owner_password, 10);
+    await client.query('INSERT INTO stall_owners (stall_id, username, password_hash) VALUES ($1, $2, $3)', [
+      stall.id,
+      owner_username.trim(),
+      hash,
+    ]);
+
+    await client.query('COMMIT');
+    res.status(201).json({ ...stall, owner_username: owner_username.trim() });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const field = err.constraint?.includes('username') ? 'owner_username' : 'stall name';
+      return res.status(400).json({ error: `That ${field} is already taken` });
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 // ---------- Health ----------

@@ -80,6 +80,10 @@ export default function StallList() {
         <Link to="/owner/login" className="text-sm text-stone underline decoration-line hover:text-ink">
           Stall owner login →
         </Link>
+        <span className="mx-3 text-line">|</span>
+        <Link to="/admin/login" className="text-sm text-stone underline decoration-line hover:text-ink">
+          Admin login →
+        </Link>
       </footer>
     </div>
   );

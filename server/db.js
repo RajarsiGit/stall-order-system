@@ -66,6 +66,13 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS admins (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS menu_items (
       id SERIAL PRIMARY KEY,
       stall_id INTEGER NOT NULL REFERENCES stalls(id) ON DELETE CASCADE,
@@ -105,30 +112,39 @@ async function ensureSchema() {
   `);
 
   const { rows } = await pool.query('SELECT COUNT(*)::int AS c FROM stalls');
-  if (rows[0].c > 0) return;
-
-  for (const s of SEED) {
-    const { rows: stallRows } = await pool.query(
-      'INSERT INTO stalls (name, description) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING RETURNING id',
-      [s.name, s.description]
-    );
-    if (stallRows.length === 0) continue; // already seeded by a concurrent cold start
-
-    const stallId = stallRows[0].id;
-    const hash = bcrypt.hashSync(s.password, 10);
-    await pool.query(
-      'INSERT INTO stall_owners (stall_id, username, password_hash) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
-      [stallId, s.username, hash]
-    );
-    for (const [name, description, price] of s.items) {
-      await pool.query(
-        'INSERT INTO menu_items (stall_id, name, description, price) VALUES ($1, $2, $3, $4)',
-        [stallId, name, description, price]
+  if (rows[0].c === 0) {
+    for (const s of SEED) {
+      const { rows: stallRows } = await pool.query(
+        'INSERT INTO stalls (name, description) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING RETURNING id',
+        [s.name, s.description]
       );
+      if (stallRows.length === 0) continue; // already seeded by a concurrent cold start
+
+      const stallId = stallRows[0].id;
+      const hash = bcrypt.hashSync(s.password, 10);
+      await pool.query(
+        'INSERT INTO stall_owners (stall_id, username, password_hash) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
+        [stallId, s.username, hash]
+      );
+      for (const [name, description, price] of s.items) {
+        await pool.query(
+          'INSERT INTO menu_items (stall_id, name, description, price) VALUES ($1, $2, $3, $4)',
+          [stallId, name, description, price]
+        );
+      }
     }
+    console.log('Seeded demo data: 3 stalls, each with owner login (password: password123)');
   }
 
-  console.log('Seeded demo data: 3 stalls, each with owner login (password: password123)');
+  const { rows: adminRows } = await pool.query('SELECT COUNT(*)::int AS c FROM admins');
+  if (adminRows[0].c === 0) {
+    const adminHash = bcrypt.hashSync('admin123', 10);
+    await pool.query(
+      "INSERT INTO admins (username, password_hash) VALUES ('admin', $1) ON CONFLICT (username) DO NOTHING",
+      [adminHash]
+    );
+    console.log('Seeded demo admin login: admin / admin123');
+  }
 }
 
 // Memoized per warm instance so every request doesn't re-run schema/seed checks.

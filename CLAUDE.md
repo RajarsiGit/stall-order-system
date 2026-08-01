@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FoodCourt Hub — a multi-stall food ordering app. Customers browse stalls, order, and track a
 live ticket by order number (no account needed); stall owners log in to a scoped dashboard to
-watch an order queue, advance order status, mark payments received, and manage their menu.
+watch an order queue, advance order status, mark payments received, and manage their menu; a
+separate admin login can create new stalls (and their initial owner credentials).
 
 ## Commands
 
@@ -29,7 +30,8 @@ DATABASE_URL=<postgres connection string>
 ```
 On first request after startup, `server/db.js` runs `CREATE TABLE IF NOT EXISTS` for the whole
 schema and seeds 3 demo stalls (with owner logins, password `password123`) if the `stalls` table
-is empty — there is no separate migration/seed script to run.
+is empty, plus a demo admin login (`admin` / `admin123`) if the `admins` table is empty (seeded
+independently of the stalls check) — there is no separate migration/seed script to run.
 
 **Frontend** (`client/`, Vite + React):
 ```bash
@@ -74,13 +76,21 @@ and on Vercel (via a stateless function per request). When editing routes, alway
   explicit `pool.connect()` / `BEGIN` / `COMMIT` transaction (insert order, then insert each
   order_item) — follow that pattern for any other multi-row write that must be atomic.
 
-**Auth** (`server/auth.js`):
-- Stall owners only (customers never authenticate). JWT signed with `JWT_SECRET`, 12h expiry,
-  payload is `{ ownerId, stallId, username }`.
-- `requireAuth` middleware attaches `req.owner` and is applied per-route (not globally) — every
-  `/api/owner/*` route is scoped to `req.owner.stallId`, so a logged-in owner can only ever see
-  or modify their own stall's data. When adding an owner-facing route, always filter queries by
-  `req.owner.stallId`, not just by the resource's own id.
+**Auth** (`server/auth.js`) — two separate principal types (customers never authenticate):
+- Stall owners: JWT payload `{ ownerId, stallId, username, role: 'owner' }`, signed by `signToken`.
+  `requireAuth` middleware attaches `req.owner` and rejects any token whose `role` isn't `'owner'`
+  (so an admin token can't be reused here). Every `/api/owner/*` route is scoped to
+  `req.owner.stallId`, so a logged-in owner can only ever see or modify their own stall's data.
+  When adding an owner-facing route, always filter queries by `req.owner.stallId`, not just by the
+  resource's own id.
+- Admins: JWT payload `{ adminId, username, role: 'admin' }`, signed by `signAdminToken`.
+  `requireAdmin` middleware attaches `req.admin` and rejects anything without `role === 'admin'`.
+  Admins can only create stalls (`POST /api/admin/stalls`, which also creates that stall's first
+  owner login in the same transaction) and list all stalls (`GET /api/admin/stalls`) — they have
+  no route access to any stall's orders or menu.
+- Both roles are signed with the same `JWT_SECRET`, so the `role` claim is what separates them —
+  if you add a new protected route, always gate it with `requireAuth` or `requireAdmin` explicitly
+  rather than assuming a valid signature implies the right role.
 
 **Order status machine** (`server/app.js`, `VALID_TRANSITIONS`):
 `placed → preparing → ready → handed_over`, with `placed`/`preparing` also able to go to
@@ -93,14 +103,18 @@ special-casing new transitions in the handler.
   is always the relative `/api` (works via Vite's dev proxy locally and via Vercel's rewrite in
   prod — no environment-specific API URL config needed).
 - `lib/CartContext.jsx` — cart is per-stall in memory (not persisted); switching stalls clears it.
-- `lib/OwnerAuthContext.jsx` — owner JWT lives in `localStorage`; on mount, calls `api.me()` to
-  validate the stored token before rendering owner routes.
-- `components/RequireOwnerAuth.jsx` — route guard used to wrap `/owner/dashboard` and
-  `/owner/menu` in `App.jsx`; redirects to `/owner/login` if there's no valid session.
+- `lib/OwnerAuthContext.jsx` / `lib/AdminAuthContext.jsx` — mirror-image auth contexts, each with
+  its own `localStorage` key (`owner_token` vs `admin_token`) so an owner and admin session can
+  coexist in the same browser. `request()` in `api.js` takes an explicit `token` override for
+  admin calls (`api.js` otherwise defaults to the owner token) — don't merge these into a single
+  token/context without also handling that both can be logged in at once.
+- `components/RequireOwnerAuth.jsx` / `RequireAdminAuth.jsx` — route guards wrapping
+  `/owner/dashboard`+`/owner/menu` and `/admin/dashboard` respectively in `App.jsx`.
 - Customer order tracking and the owner dashboard both poll every 5s (no websockets/push).
 
 ## Notes on scope (intentional, not gaps to "fix" silently)
 
 - Payments are tracked (`pending`/`paid`) but not processed — no real payment gateway.
-- No password reset flow for stall owners, and no cross-stall admin view — each owner sees only
-  their own stall.
+- No password reset flow for stall owners.
+- Admin can create stalls but has no visibility into any stall's orders/sales — that's
+  intentionally still owner-only.
