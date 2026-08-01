@@ -69,8 +69,6 @@ export default function AdminLogin() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <p className="mt-6 font-mono text-xs text-paper/40">Demo login: admin — password: admin123</p>
       </div>
     </div>
   );

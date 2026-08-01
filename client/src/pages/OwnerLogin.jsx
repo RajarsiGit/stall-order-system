@@ -69,10 +69,6 @@ export default function OwnerLogin() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <p className="mt-6 font-mono text-xs text-paper/40">
-          Demo logins: curryhouse / dosacorner / burgerjunction — password: password123
-        </p>
       </div>
     </div>
   );
