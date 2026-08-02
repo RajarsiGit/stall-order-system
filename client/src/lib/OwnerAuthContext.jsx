@@ -29,7 +29,7 @@ export function OwnerAuthProvider({ children }) {
     const data = await api.login(username, password);
     setToken(data.token);
     setStall(data.stall);
-    setOwner({ username });
+    setOwner(data.owner);
     return data;
   }
 

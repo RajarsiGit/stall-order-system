@@ -28,7 +28,7 @@ export default function StallMenu() {
     return (
       <div className="min-h-screen bg-paper px-6 py-10">
         <p className="text-paprika-dark">{error}</p>
-        <Link to="/" className="mt-4 inline-block text-sm underline">
+        <Link to="/stalls" className="mt-4 inline-block text-sm underline">
           ← Back to stalls
         </Link>
       </div>
@@ -50,7 +50,7 @@ export default function StallMenu() {
   return (
     <div className="min-h-screen bg-paper pb-32">
       <header className="border-b-2 border-ink px-6 py-6 md:px-12">
-        <Link to="/" className="font-mono text-xs uppercase tracking-[0.2em] text-stone hover:text-ink">
+        <Link to="/stalls" className="font-mono text-xs uppercase tracking-[0.2em] text-stone hover:text-ink">
           ← All stalls
         </Link>
         <h1 className="mt-2 font-display text-3xl md:text-5xl">{stall.name}</h1>

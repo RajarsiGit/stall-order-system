@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useCustomerAuth } from '../lib/CustomerAuthContext';
 import { usePageTitle } from '../lib/usePageTitle';
+import NotificationBell from '../components/NotificationBell';
 import logo from '../assets/logo.svg';
 
 export default function StallList() {
+  const { customer, logout } = useCustomerAuth();
+  const navigate = useNavigate();
   const [stalls, setStalls] = useState(null);
   const [error, setError] = useState('');
 
@@ -17,17 +21,39 @@ export default function StallList() {
       .catch((e) => setError(e.message));
   }, []);
 
+  function handleLogout() {
+    logout();
+    navigate('/', { replace: true });
+  }
+
   return (
     <div className="min-h-screen bg-paper">
       <header className="border-b-2 border-ink px-6 py-8 md:px-12">
-        <div className="flex items-center gap-3">
-          <img src={logo} alt="" className="h-9 w-9 md:h-11 md:w-11" />
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone">Now serving</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="" className="h-9 w-9 md:h-11 md:w-11" />
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone">Now serving</p>
+            </div>
+            <h1 className="mt-2 font-display text-4xl md:text-6xl leading-none">FoodCourt Hub</h1>
+            <p className="mt-3 max-w-md text-stone">
+              Pick a stall, build your order, and we'll print you a ticket number to track.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-stone">Hi, {customer?.name}</p>
+            <Link to="/customer/orders" className="text-sm text-stone underline decoration-line hover:text-ink">
+              Your orders
+            </Link>
+            <NotificationBell
+              fetchNotifications={api.getCustomerNotifications}
+              markAllRead={api.markCustomerNotificationsRead}
+            />
+            <button onClick={handleLogout} className="text-sm text-stone underline decoration-line hover:text-ink">
+              Log out
+            </button>
+          </div>
         </div>
-        <h1 className="mt-2 font-display text-4xl md:text-6xl leading-none">FoodCourt Hub</h1>
-        <p className="mt-3 max-w-md text-stone">
-          Pick a stall, build your order, and we'll print you a ticket number to track.
-        </p>
       </header>
 
       <main className="px-6 py-10 md:px-12">
@@ -75,14 +101,6 @@ export default function StallList() {
       <footer className="mt-10 border-t border-line px-6 py-6 md:px-12">
         <Link to="/track" className="text-sm text-stone underline decoration-line hover:text-ink">
           Already ordered? Track your ticket →
-        </Link>
-        <span className="mx-3 text-line">|</span>
-        <Link to="/owner/login" className="text-sm text-stone underline decoration-line hover:text-ink">
-          Stall owner login →
-        </Link>
-        <span className="mx-3 text-line">|</span>
-        <Link to="/admin/login" className="text-sm text-stone underline decoration-line hover:text-ink">
-          Admin login →
         </Link>
       </footer>
     </div>

@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useCart } from '../lib/CartContext';
+import { useCustomerAuth } from '../lib/CustomerAuthContext';
 import { usePageTitle } from '../lib/usePageTitle';
 
 export default function Checkout() {
   const { stallId } = useParams();
   const navigate = useNavigate();
   const cart = useCart();
+  const { customer } = useCustomerAuth();
 
   usePageTitle('Review your order');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -29,17 +29,11 @@ export default function Checkout() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('Please tell us your name so we can call your order.');
-      return;
-    }
     setSubmitting(true);
     setError('');
     try {
       const order = await api.placeOrder({
         stall_id: Number(stallId),
-        customer_name: name.trim(),
-        customer_phone: phone.trim() || undefined,
         notes: notes.trim() || undefined,
         items: cart.lines.map((l) => ({ menu_item_id: l.menu_item_id, quantity: l.quantity })),
       });
@@ -61,27 +55,9 @@ export default function Checkout() {
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_360px]">
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
-          <label className="block">
-            <span className="text-sm font-medium">Your name</span>
-            <input
-              className="mt-1.5 w-full border-2 border-ink bg-white px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-paprika"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Rajarsi"
-              autoFocus
-            />
-          </label>
-
-          <label className="mt-4 block">
-            <span className="text-sm font-medium">Phone (optional)</span>
-            <input
-              className="mt-1.5 w-full border-2 border-ink bg-white px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-paprika"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="In case the stall needs to reach you"
-              type="tel"
-            />
-          </label>
+          <p className="text-sm text-stone">
+            Ordering as <span className="font-medium text-ink">{customer?.name}</span> ({customer?.email})
+          </p>
 
           <label className="mt-4 block">
             <span className="text-sm font-medium">Notes for the stall (optional)</span>
@@ -91,6 +67,7 @@ export default function Checkout() {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. less spicy, no onions"
               rows={3}
+              autoFocus
             />
           </label>
 

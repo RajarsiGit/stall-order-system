@@ -5,7 +5,8 @@ import { useAdminAuth } from '../lib/AdminAuthContext';
 import { usePageTitle } from '../lib/usePageTitle';
 
 export default function AdminDashboard() {
-  const { logout } = useAdminAuth();
+  const { admin, logout } = useAdminAuth();
+  const isSuperAdmin = admin?.admin_role === 'superadmin';
 
   usePageTitle('Admin dashboard');
   const [stalls, setStalls] = useState(null);
@@ -52,6 +53,11 @@ export default function AdminDashboard() {
             <h1 className="mt-1 font-display text-3xl">Stalls</h1>
           </div>
           <div className="flex items-center gap-3">
+            {isSuperAdmin && (
+              <Link to="/admin/admins" className="text-sm text-stone underline hover:text-ink">
+                Admin accounts
+              </Link>
+            )}
             <Link to="/" className="text-sm text-stone underline hover:text-ink">
               Customer side
             </Link>
