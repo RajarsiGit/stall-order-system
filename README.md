@@ -4,7 +4,7 @@ A multi-stall food ordering app: customers browse stalls, order, and track a
 live ticket; stall owners watch an order queue, update status, and mark
 payments received.
 
-<img width="1920" height="834" alt="image" src="https://github.com/user-attachments/assets/9a5ad101-2de1-4a66-8788-1fc6e195132e" />
+<img width="1920" height="828" alt="image" src="https://github.com/user-attachments/assets/d9ce8a70-d820-4842-ad66-0e3850f90a99" />
 
 ## Stack
 
