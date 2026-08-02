@@ -28,6 +28,13 @@ body {
   color: var(--color-ink);
 }
 
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
 .ticket-edge {
   position: relative;
 }

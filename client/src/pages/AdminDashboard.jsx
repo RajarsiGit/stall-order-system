@@ -62,7 +62,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-8 px-6 py-8 md:grid-cols-[1fr_360px] md:px-10">
+      <main className="grid grid-cols-1 gap-8 px-6 py-8 md:px-10 lg:grid-cols-[1fr_360px]">
         <div>
           {error && (
             <div className="mb-4 border-2 border-paprika bg-paprika/10 px-4 py-3 text-paprika-dark">{error}</div>

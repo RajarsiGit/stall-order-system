@@ -300,7 +300,7 @@ export default function OwnerDashboard() {
         )}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {COLUMNS.map((col) => (
               <Column
                 key={col.key}

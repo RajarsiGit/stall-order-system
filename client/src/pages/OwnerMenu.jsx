@@ -70,7 +70,7 @@ export default function OwnerMenu() {
         <h1 className="mt-1 font-display text-3xl">{stall?.name} — Menu</h1>
       </header>
 
-      <main className="grid grid-cols-1 gap-8 px-6 py-8 md:grid-cols-[1fr_360px] md:px-10">
+      <main className="grid grid-cols-1 gap-8 px-6 py-8 md:px-10 lg:grid-cols-[1fr_360px]">
         <div>
           {error && (
             <div className="mb-4 border-2 border-paprika bg-paprika/10 px-4 py-3 text-paprika-dark">{error}</div>

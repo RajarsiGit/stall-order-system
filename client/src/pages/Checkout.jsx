@@ -59,8 +59,8 @@ export default function Checkout() {
       </Link>
       <h1 className="mt-2 font-display text-3xl md:text-5xl">Review your order</h1>
 
-      <div className="mt-8 grid gap-10 md:grid-cols-[1fr_360px]">
-        <form onSubmit={handleSubmit} className="order-2 md:order-1">
+      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_360px]">
+        <form onSubmit={handleSubmit} className="order-2 lg:order-1">
           <label className="block">
             <span className="text-sm font-medium">Your name</span>
             <input
@@ -108,7 +108,7 @@ export default function Checkout() {
           </p>
         </form>
 
-        <aside className="order-1 border-2 border-ink bg-white p-5 md:order-2">
+        <aside className="order-1 border-2 border-ink bg-white p-5 lg:order-2">
           <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-stone">Your items</h2>
           <div className="mt-3 divide-y divide-line">
             {cart.lines.map((l) => (
