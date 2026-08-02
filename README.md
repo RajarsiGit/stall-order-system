@@ -5,6 +5,8 @@ track a live ticket; stall owners (managers or staff) watch an order queue, upda
 and mark payments received; a separate admin role manages stalls and, for super-admins,
 other admin accounts. Both customers and stall owners get in-app notifications.
 
+<img width="1920" height="828" alt="image" src="https://github.com/user-attachments/assets/d9ce8a70-d820-4842-ad66-0e3850f90a99" />
+
 ## Stack
 
 - **Backend**: Node.js + Express, Postgres (Neon) via `pg`, JWT auth for three separate
