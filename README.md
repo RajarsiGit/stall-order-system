@@ -4,6 +4,8 @@ A multi-stall food ordering app: customers browse stalls, order, and track a
 live ticket; stall owners watch an order queue, update status, and mark
 payments received.
 
+<img width="1920" height="834" alt="image" src="https://github.com/user-attachments/assets/9a5ad101-2de1-4a66-8788-1fc6e195132e" />
+
 ## Stack
 
 - **Backend**: Node.js + Express, Postgres (Neon) via `pg`, JWT auth for stall owners
