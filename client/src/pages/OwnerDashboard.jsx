@@ -79,6 +79,48 @@ function OrderCard({ order, onAdvance, onCancel, onTogglePayment, busy }) {
   );
 }
 
+function HandoverDialog({ order, pin, onPinChange, error, busy, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/60 px-4">
+      <div className="ticket-edge w-full max-w-sm border-2 border-ink bg-white px-6 pb-7 pt-5 shadow-[6px_6px_0_0_#1c1917]">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone">Confirm handover</p>
+        <h2 className="mt-1 font-display text-2xl tabular-nums">{order.order_number}</h2>
+        <p className="mt-1 text-sm text-stone">Ask {order.customer_name} for their pickup PIN.</p>
+
+        <form onSubmit={onConfirm}>
+          <input
+            autoFocus
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="••••"
+            value={pin}
+            onChange={(e) => onPinChange(e.target.value.replace(/\D/g, ''))}
+            className="mt-4 w-full border-2 border-ink bg-white px-3 py-2.5 text-center font-mono text-2xl tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-paprika"
+          />
+          {error && <p className="mt-2 text-sm text-paprika-dark">{error}</p>}
+
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 border-2 border-line px-3 py-2.5 text-sm text-stone hover:border-paprika hover:text-paprika-dark transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex-1 border-2 border-ink bg-ink px-3 py-2.5 text-sm font-medium text-paper hover:bg-paprika hover:border-paprika transition-colors disabled:opacity-50"
+            >
+              {busy ? 'Checking…' : 'Confirm'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const COLUMNS = [
   { key: 'placed', title: 'New orders' },
   { key: 'preparing', title: 'Preparing' },
@@ -124,6 +166,10 @@ export default function OwnerDashboard() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [handoverOrder, setHandoverOrder] = useState(null);
+  const [handoverPin, setHandoverPin] = useState('');
+  const [handoverError, setHandoverError] = useState('');
+  const [handoverBusy, setHandoverBusy] = useState(false);
   const pollRef = useRef(null);
 
   const load = useCallback(() => {
@@ -140,23 +186,39 @@ export default function OwnerDashboard() {
   }, [load]);
 
   async function handleAdvance(order, nextStatus) {
-    let pin;
     if (nextStatus === 'handed_over') {
-      pin = prompt(`Enter the pickup PIN from ${order.customer_name} to hand over ${order.order_number}:`);
-      if (pin === null) return;
-      if (!pin.trim()) {
-        setError('A pickup PIN is required to hand over this order');
-        return;
-      }
+      setHandoverOrder(order);
+      setHandoverPin('');
+      setHandoverError('');
+      return;
     }
     setBusyId(order.id);
     try {
-      await api.updateOrderStatus(order.id, nextStatus, pin);
+      await api.updateOrderStatus(order.id, nextStatus);
       load();
     } catch (e) {
       setError(e.message);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function confirmHandover(e) {
+    e.preventDefault();
+    if (!handoverPin.trim()) {
+      setHandoverError('Enter the pickup PIN');
+      return;
+    }
+    setHandoverBusy(true);
+    setHandoverError('');
+    try {
+      await api.updateOrderStatus(handoverOrder.id, 'handed_over', handoverPin.trim());
+      setHandoverOrder(null);
+      load();
+    } catch (e) {
+      setHandoverError(e.message);
+    } finally {
+      setHandoverBusy(false);
     }
   }
 
@@ -258,6 +320,18 @@ export default function OwnerDashboard() {
           ))}
         </div>
       </main>
+
+      {handoverOrder && (
+        <HandoverDialog
+          order={handoverOrder}
+          pin={handoverPin}
+          onPinChange={setHandoverPin}
+          error={handoverError}
+          busy={handoverBusy}
+          onConfirm={confirmHandover}
+          onCancel={() => setHandoverOrder(null)}
+        />
+      )}
     </div>
   );
 }
