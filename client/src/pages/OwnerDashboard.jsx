@@ -140,9 +140,18 @@ export default function OwnerDashboard() {
   }, [load]);
 
   async function handleAdvance(order, nextStatus) {
+    let pin;
+    if (nextStatus === 'handed_over') {
+      pin = prompt(`Enter the pickup PIN from ${order.customer_name} to hand over ${order.order_number}:`);
+      if (pin === null) return;
+      if (!pin.trim()) {
+        setError('A pickup PIN is required to hand over this order');
+        return;
+      }
+    }
     setBusyId(order.id);
     try {
-      await api.updateOrderStatus(order.id, nextStatus);
+      await api.updateOrderStatus(order.id, nextStatus, pin);
       load();
     } catch (e) {
       setError(e.message);

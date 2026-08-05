@@ -64,8 +64,11 @@ export const api = {
   // Owner
   getOwnerOrders: (status) => request(`/owner/orders${status ? `?status=${status}` : ''}`),
   getOwnerOrderHistory: () => request('/owner/orders/history'),
-  updateOrderStatus: (orderId, status) =>
-    request(`/owner/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateOrderStatus: (orderId, status, pin) =>
+    request(`/owner/orders/${orderId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(pin ? { status, pin } : { status }),
+    }),
   updatePaymentStatus: (orderId, payment_status) =>
     request(`/owner/orders/${orderId}/payment`, { method: 'PATCH', body: JSON.stringify({ payment_status }) }),
   getOwnerMenu: () => request('/owner/menu'),

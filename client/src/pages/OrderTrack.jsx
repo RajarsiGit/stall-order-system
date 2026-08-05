@@ -113,6 +113,14 @@ export default function OrderTrack() {
               <StatusBanner status={order.status} />
             </div>
 
+            {order.pickup_pin && order.status !== 'cancelled' && order.status !== 'handed_over' && (
+              <div className="mt-4 border-2 border-ink bg-turmeric-light px-4 py-3 text-center">
+                <p className="font-mono text-xs uppercase tracking-[0.2em] text-stone">Pickup PIN</p>
+                <p className="mt-1 font-display text-3xl tabular-nums tracking-widest">{order.pickup_pin}</p>
+                <p className="mt-1 text-xs text-stone">Give this to the stall when you collect your order.</p>
+              </div>
+            )}
+
             {order.status !== 'cancelled' && (
               <ol className="mt-6 space-y-0">
                 {STEPS.map((step, i) => {

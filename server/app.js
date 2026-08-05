@@ -24,14 +24,19 @@ app.use(async (req, res, next) => {
 });
 
 const genOrderSuffix = customAlphabet('0123456789', 4);
+const genPickupPin = customAlphabet('0123456789', 4);
 
 // ---------- Helpers ----------
-async function serializeOrder(order) {
+// pickup_pin is only ever surfaced to the customer who placed the order — owner-facing
+// responses omit it (includePin: false, the default) so the stall must ask the customer
+// for it rather than reading it off their own queue.
+async function serializeOrder(order, { includePin = false } = {}) {
   const { rows: items } = await pool.query(
     'SELECT id, item_name, item_price, quantity FROM order_items WHERE order_id = $1',
     [order.id]
   );
-  return { ...order, items };
+  const { pickup_pin, ...rest } = order;
+  return { ...rest, ...(includePin ? { pickup_pin } : {}), items };
 }
 
 const VALID_TRANSITIONS = {
@@ -111,15 +116,16 @@ app.post('/api/orders', requireCustomerAuth, async (req, res) => {
   }
 
   const orderNumber = `${stall.name.slice(0, 2).toUpperCase()}-${genOrderSuffix()}`;
+  const pickupPin = genPickupPin();
 
   const client = await pool.connect();
   let order;
   try {
     await client.query('BEGIN');
     const { rows: orderRows } = await client.query(
-      `INSERT INTO orders (order_number, stall_id, customer_id, customer_name, customer_phone, total_amount, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [orderNumber, stall_id, customer.id, customer.name, customer.phone || null, total, notes || null]
+      `INSERT INTO orders (order_number, stall_id, customer_id, customer_name, customer_phone, total_amount, notes, pickup_pin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [orderNumber, stall_id, customer.id, customer.name, customer.phone || null, total, notes || null, pickupPin]
     );
     order = orderRows[0];
     for (const it of resolvedItems) {
@@ -141,7 +147,7 @@ app.post('/api/orders', requireCustomerAuth, async (req, res) => {
     client.release();
   }
 
-  res.status(201).json(await serializeOrder(order));
+  res.status(201).json(await serializeOrder(order, { includePin: true }));
 });
 
 // Customer order tracking (public, by order number)
@@ -149,7 +155,7 @@ app.get('/api/orders/track/:orderNumber', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM orders WHERE order_number = $1', [req.params.orderNumber]);
   const order = rows[0];
   if (!order) return res.status(404).json({ error: 'Order not found' });
-  res.json(await serializeOrder(order));
+  res.json(await serializeOrder(order, { includePin: true }));
 });
 
 // ================= AUTH (customer) =================
@@ -205,7 +211,7 @@ app.get('/api/customer/orders', requireCustomerAuth, async (req, res) => {
     'SELECT * FROM orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 100',
     [req.customer.customerId]
   );
-  res.json(await Promise.all(rows.map(serializeOrder)));
+  res.json(await Promise.all(rows.map((o) => serializeOrder(o, { includePin: true }))));
 });
 
 app.get('/api/customer/notifications', requireCustomerAuth, async (req, res) => {
@@ -286,7 +292,7 @@ const STATUS_MESSAGE = {
 };
 
 app.patch('/api/owner/orders/:orderId/status', requireAuth, async (req, res) => {
-  const { status } = req.body;
+  const { status, pin } = req.body;
   const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1 AND stall_id = $2', [
     req.params.orderId,
     req.owner.stallId,
@@ -297,6 +303,14 @@ app.patch('/api/owner/orders/:orderId/status', requireAuth, async (req, res) => 
   const allowed = VALID_TRANSITIONS[order.status] || [];
   if (!allowed.includes(status)) {
     return res.status(400).json({ error: `Cannot move order from '${order.status}' to '${status}'` });
+  }
+
+  // order.pickup_pin is null for legacy orders placed before this feature existed —
+  // those skip verification since the customer was never issued a PIN.
+  if (status === 'handed_over' && order.pickup_pin) {
+    if (!pin || pin.trim() !== order.pickup_pin) {
+      return res.status(400).json({ error: 'Incorrect pickup PIN' });
+    }
   }
 
   const client = await pool.connect();
